@@ -248,6 +248,7 @@ public class ProgressHUD: UIView {
 
 	private var timer: Timer?
 
+    private var animator: UIViewPropertyAnimator?
 	private var animationType	= AnimationType.systemActivityIndicator
 
 	private var colorBackground	= UIColor(red: 0, green: 0, blue: 0, alpha: 0.2)
@@ -340,6 +341,9 @@ public class ProgressHUD: UIView {
 			viewBackground = UIView(frame: self.bounds)
 			mainWindow.addSubview(viewBackground!)
 		}
+        else if let viewBackground = viewBackground, let mainWindow = UIApplication.shared.windows.first {
+            mainWindow.bringSubviewToFront(viewBackground)
+        }
 
 		viewBackground?.backgroundColor = interaction ? .clear : colorBackground
 		viewBackground?.isUserInteractionEnabled = (interaction == false)
@@ -572,30 +576,35 @@ public class ProgressHUD: UIView {
 
 		timer?.invalidate()
 		timer = nil
-
-		if (self.alpha != 1) {
-			self.alpha = 1
-			toolbarHUD?.alpha = 0
-			toolbarHUD?.transform = CGAffineTransform(scaleX: 1.4, y: 1.4)
-
-			UIView.animate(withDuration: 0.15, delay: 0, options: [.allowUserInteraction, .curveEaseIn], animations: {
-				self.toolbarHUD?.transform = CGAffineTransform(scaleX: 1/1.4, y: 1/1.4)
-				self.toolbarHUD?.alpha = 1
-			}, completion: nil)
-		}
+        if animator != nil {
+            animator?.stopAnimation(true)
+        }
+        self.alpha = 1
+        toolbarHUD?.alpha = 0
+        toolbarHUD?.transform = CGAffineTransform(scaleX: 1.4, y: 1.4)
+        animator = UIViewPropertyAnimator(duration: 0.15, curve: .easeIn) {
+            self.toolbarHUD?.transform = CGAffineTransform(scaleX: 1/1.4, y: 1/1.4)
+            self.toolbarHUD?.alpha = 1
+        }
+        animator?.startAnimation()
 	}
 
 	//-------------------------------------------------------------------------------------------------------------------------------------------
 	private func hudHide() {
-
-		if (self.alpha == 1) {
-			UIView.animate(withDuration: 0.15, delay: 0, options: [.allowUserInteraction, .curveEaseIn], animations: {
-				self.toolbarHUD?.transform = CGAffineTransform(scaleX: 0.3, y: 0.3)
-				self.toolbarHUD?.alpha = 0
-			}, completion: { isFinished in
-				self.hudDestroy()
-				self.alpha = 0
-			})
+        if (self.alpha == 1) {
+            if animator != nil {
+                animator?.stopAnimation(true)
+            }
+            
+            animator = UIViewPropertyAnimator(duration: 0.15, curve: .easeIn, animations: {
+                self.toolbarHUD?.transform = CGAffineTransform(scaleX: 0.3, y: 0.3)
+                self.toolbarHUD?.alpha = 0
+            })
+            animator?.addCompletion { _ in
+                self.hudDestroy()
+                self.alpha = 0
+            }
+            animator?.startAnimation()
 		}
 	}
 
@@ -615,6 +624,8 @@ public class ProgressHUD: UIView {
 
 		timer?.invalidate()
 		timer = nil
+        
+        animator = nil
 	}
 
 	// MARK: - Animation
